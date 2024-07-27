@@ -580,7 +580,7 @@ function criticality(grsp::GridRSP;
     reference_connected_habitat = sum(connected_habitat(grsp, distance_transformation=distance_transformation, diagvalue=diagvalue))
     critvec = fill(reference_connected_habitat, nl)
 
-    @progress name="Computing criticality..." for i in 1:nl
+    @showprogress for i in 1:nl
         critvec[i] -= sum(connected_habitat(
             grsp,
             targetidx[i];

@@ -1,7 +1,7 @@
 module ConScape
 
     using SparseArrays, LinearAlgebra
-    using Graphs, Plots, SimpleWeightedGraphs, ProgressLogging, ArnoldiMethod
+    using Graphs, Plots, SimpleWeightedGraphs, ProgressMeter, ArnoldiMethod
 
     abstract type ConnectivityFunction <: Function end
     abstract type DistanceFunction <: ConnectivityFunction end

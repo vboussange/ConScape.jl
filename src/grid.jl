@@ -276,7 +276,7 @@ function least_cost_distance(g::Grid; θ::Nothing=nothing, approx::Bool=false)
         throw(ArgumentError("no approximate algorithm is available for this distance function"))
     end
     targets = ConScape._targetidx_and_nodes(g)[1]
-    @progress vec_of_vecs = [_least_cost_distance(g, target) for target in targets]
+    vec_of_vecs = @showprogress [_least_cost_distance(g, target) for target in targets]
 
     return reduce(hcat, vec_of_vecs)
 end
@@ -361,7 +361,7 @@ function expected_cost(
     # FIXME! This should be multithreaded. However, ProgressLogging currently
     # does not support multithreading
     targets = ConScape._targetidx_and_nodes(g)[1]
-    @progress vec_of_vecs = [_expected_cost(g, target, θ, approx) for target in targets]
+    vec_of_vecs = @showprogress [_expected_cost(g, target, θ, approx) for target in targets]
 
     return reduce(hcat, vec_of_vecs)
 end
@@ -406,7 +406,7 @@ function free_energy_distance(
     # FIXME! This should be multithreaded. However, ProgressLogging currently
     # does not support multithreading
     targets = ConScape._targetidx_and_nodes(g)[1]
-    @progress vec_of_vecs = [_free_energy_distance(g, target, θ, approx) for target in targets]
+    vec_of_vecs = @showprogress [_free_energy_distance(g, target, θ, approx) for target in targets]
 
     return reduce(hcat, vec_of_vecs)
 end
