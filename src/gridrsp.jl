@@ -14,17 +14,32 @@ Construct a GridRSP from a `g::Grid` based on the inverse temperature parameter 
 function GridRSP(g::Grid; θ=nothing)
 
     Pref = _Pref(g.affinities)
-    W    = _W(Pref, θ, g.costmatrix)
+    W = _W(Pref, θ, g.costmatrix)
 
     @debug("Computing fundamental matrix of non-absorbing paths (Z). Please be patient...")
     targetidx, targetnodes = _targetidx_and_nodes(g)
+    # b = sparse(targetnodes,
+    #     1:length(targetnodes),
+    #     1.0,
+    #     size(g.costmatrix, 1),
+    #     length(targetnodes))
+    # A = I - W
+    # prob = LinearProblem(A, b)
+    # @show (size(b))
+    # @show (size(A))
+
+    # sol = solve(prob)
+    # Z = sol.u
+
     Z    = (I - W)\Matrix(sparse(targetnodes,
-                                 1:length(targetnodes),
-                                 1.0,
-                                 size(g.costmatrix, 1),
-                                 length(targetnodes)))
+                                1:length(targetnodes),
+                                1.0,
+                                size(g.costmatrix, 1),
+                                length(targetnodes)))
+
+
     # Check that values in Z are not too small:
-    if minimum(Z)*minimum(nonzeros(g.costmatrix .* W)) == 0
+    if minimum(Z) * minimum(nonzeros(g.costmatrix .* W)) == 0
         @warn "Warning: Z-matrix contains too small values, which can lead to inaccurate results! Check that the graph is connected or try decreasing θ."
     end
 
@@ -215,7 +230,7 @@ function mean_kl_divergence(grsp::GridRSP)
     targetidx, targetnodes = _targetidx_and_nodes(grsp.g)
     qs = [grsp.g.source_qualities[i] for i in grsp.g.id_to_grid_coordinate_list]
     qt = [grsp.g.target_qualities[i] for i in grsp.g.id_to_grid_coordinate_list ∩ targetidx]
-    return qs'*(RSP_free_energy_distance(grsp.Z, grsp.θ, targetnodes) - expected_cost(grsp))*qt*grsp.θ
+    return qs' * (RSP_free_energy_distance(grsp.Z, grsp.θ, targetnodes) - expected_cost(grsp)) * qt * grsp.θ
 end
 
 
@@ -229,7 +244,7 @@ function mean_lc_kl_divergence(grsp::GridRSP)
     div = hcat([least_cost_kl_divergence(grsp.g.costmatrix, grsp.Pref, i) for i in targetnodes]...)
     qs = [grsp.g.source_qualities[i] for i in grsp.g.id_to_grid_coordinate_list]
     qt = [grsp.g.target_qualities[i] for i in grsp.g.id_to_grid_coordinate_list ∩ targetidx]
-    return qs'*div*qt
+    return qs' * div * qt
 end
 
 function least_cost_kl_divergence(C::SparseMatrixCSC, Pref::SparseMatrixCSC, targetnode::Integer)
@@ -245,7 +260,7 @@ function least_cost_kl_divergence(C::SparseMatrixCSC, Pref::SparseMatrixCSC, tar
     parents[targetnode] = targetnode
 
     from = collect(1:n)
-    to   = copy(parents)
+    to = copy(parents)
 
     kl_div = zeros(n)
 
@@ -254,7 +269,7 @@ function least_cost_kl_divergence(C::SparseMatrixCSC, Pref::SparseMatrixCSC, tar
 
         for i in 1:n
             fromᵢ = from[i]
-            toᵢ   = to[i]
+            toᵢ = to[i]
             notdone |= fromᵢ != toᵢ
             if fromᵢ == toᵢ
                 continue
@@ -268,9 +283,9 @@ function least_cost_kl_divergence(C::SparseMatrixCSC, Pref::SparseMatrixCSC, tar
         end
 
         # Pointer swap
-        tmp  = from
+        tmp = from
         from = to
-        to   = tmp
+        to = tmp
     end
 
     return kl_div
@@ -361,7 +376,7 @@ function connected_habitat(
 end
 
 _get_grid(grsp::GridRSP) = grsp.g
-_get_grid(g::Grid)       = g
+_get_grid(g::Grid) = g
 function connected_habitat(grsp::Union{Grid,GridRSP}, S::Matrix; diagvalue::Union{Nothing,Real}=nothing)
 
     g = _get_grid(grsp)
@@ -387,12 +402,12 @@ function connected_habitat(grsp::Union{Grid,GridRSP}, S::Matrix; diagvalue::Unio
 end
 
 function connected_habitat(grsp::GridRSP,
-                           cell::CartesianIndex{2};
-                           distance_transformation=nothing,
-                           diagvalue=nothing,
-                           avalue=floatmin(), # smallest non-zero value
-                           qˢvalue=0.0,
-                           qᵗvalue=0.0)
+    cell::CartesianIndex{2};
+    distance_transformation=nothing,
+    diagvalue=nothing,
+    avalue=floatmin(), # smallest non-zero value
+    qˢvalue=0.0,
+    qᵗvalue=0.0)
 
     if avalue <= 0.0
         throw("Affinity value has to be positive. Otherwise the graph will become disconnected.")
@@ -417,13 +432,13 @@ function connected_habitat(grsp::GridRSP,
     newtarget_qualities[cell] = qᵗvalue
 
     newg = Grid(grsp.g.nrows,
-                grsp.g.ncols,
-                affinities,
-                grsp.g.costfunction,
-                grsp.g.costfunction === nothing ? grsp.g.costmatrix : mapnz(grsp.g.costfunction, affinities),
-                grsp.g.id_to_grid_coordinate_list,
-                newsource_qualities,
-                newtarget_qualities)
+        grsp.g.ncols,
+        affinities,
+        grsp.g.costfunction,
+        grsp.g.costfunction === nothing ? grsp.g.costmatrix : mapnz(grsp.g.costfunction, affinities),
+        grsp.g.id_to_grid_coordinate_list,
+        newsource_qualities,
+        newtarget_qualities)
 
     newh = GridRSP(newg, θ=grsp.θ)
 
@@ -477,7 +492,7 @@ function LinearAlgebra.eigmax(grsp::GridRSP;
     qSq = qˢ .* S .* qᵗ'
 
     # square submatrix defined by extracting the rows corresponding to landmarks
-    qSq₀₀ = qSq[targetnodes,:]
+    qSq₀₀ = qSq[targetnodes, :]
 
     # size of the full problem
     n = size(g.affinities, 1)
@@ -486,7 +501,7 @@ function LinearAlgebra.eigmax(grsp::GridRSP;
     p₁ = setdiff(1:n, targetnodes)
 
     # use an Arnoldi based eigensolver to compute the largest (absolute) eigenvalue and right vector (of submatrix)
-    Fps     = partialschur(qSq₀₀, nev=1, tol=tol)
+    Fps = partialschur(qSq₀₀, nev=1, tol=tol)
     λ₀, vʳ₀ = partialeigen(Fps[1])
 
     # Some notes on handling intended or unintended landmarks. When the Grid includes landmarks,
@@ -541,10 +556,10 @@ function LinearAlgebra.eigmax(grsp::GridRSP;
     # construct full right vector
     vʳ = fill(NaN, n)
     vʳ[targetnodes] = vʳ₀
-    vʳ[p₁] = qSq[p₁,:]*vʳ₀/λ₀[1]
+    vʳ[p₁] = qSq[p₁, :] * vʳ₀ / λ₀[1]
 
     # compute left vector (of submatrix) by shift-invert
-    Flu = lu(qSq₀₀ - λ₀[1]*I)
+    Flu = lu(qSq₀₀ - λ₀[1] * I)
     vˡ₀ = ldiv!(Flu', rand(length(targetidx)))
     rmul!(vˡ₀, inv(vˡ₀[1]))
 
@@ -569,11 +584,11 @@ the cell to `qˢvalue` and `qᵗvalue` respectively. It is required that `avalue
 positive to avoid that the graph becomes disconnected.
 """
 function criticality(grsp::GridRSP;
-                     distance_transformation=nothing,
-                     diagvalue=nothing,
-                     avalue=floatmin(),
-                     qˢvalue=0.0,
-                     qᵗvalue=0.0)
+    distance_transformation=nothing,
+    diagvalue=nothing,
+    avalue=floatmin(),
+    qˢvalue=0.0,
+    qᵗvalue=0.0)
 
     targetidx, _ = _targetidx_and_nodes(grsp.g)
     nl = length(targetidx)
