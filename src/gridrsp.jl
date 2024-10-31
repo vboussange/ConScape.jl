@@ -11,18 +11,35 @@ end
 
 Construct a GridRSP from a `g::Grid` based on the inverse temperature parameter `θ::Real`.
 """
-function GridRSP(g::Grid; θ=nothing)
+function GridRSP(g::Grid; 
+                θ=nothing, 
+                # alg=nothing, 
+                # kwargs...
+                )
 
     Pref = _Pref(g.affinities)
     W    = _W(Pref, θ, g.costmatrix)
 
     @debug("Computing fundamental matrix of non-absorbing paths (Z). Please be patient...")
     targetidx, targetnodes = _targetidx_and_nodes(g)
-    Z    = (I - W)\Matrix(sparse(targetnodes,
-                                 1:length(targetnodes),
-                                 1.0,
-                                 size(g.costmatrix, 1),
-                                 length(targetnodes)))
+    
+    # Use of LinearSolve.jl
+    # Currently does not support batch mode
+    # A = I - W
+    # b = sparse(targetnodes,
+    #             1:length(targetnodes),
+    #             1.0,
+    #             size(g.costmatrix, 1),
+    #             length(targetnodes))
+    # prob = LinearProblem(A, b, kwargs...)
+    # sol = solve(prob, alg, kwargs...)
+    # Z = sol.u
+
+    Z    = (I - W) \ Matrix(sparse(targetnodes,
+                            1:length(targetnodes),
+                            one(eltype(W)),
+                            size(g.costmatrix, 1),
+                            length(targetnodes)))
     # Check that values in Z are not too small:
     if minimum(Z)*minimum(nonzeros(g.costmatrix .* W)) == 0
         @warn "Warning: Z-matrix contains too small values, which can lead to inaccurate results! Check that the graph is connected or try decreasing θ."
@@ -580,7 +597,7 @@ function criticality(grsp::GridRSP;
     reference_connected_habitat = sum(connected_habitat(grsp, distance_transformation=distance_transformation, diagvalue=diagvalue))
     critvec = fill(reference_connected_habitat, nl)
 
-    @progress name="Computing criticality..." for i in 1:nl
+    @showprogress desc="Computing criticality..." for i in 1:nl
         critvec[i] -= sum(connected_habitat(
             grsp,
             targetidx[i];
